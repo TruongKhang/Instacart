@@ -41,30 +41,35 @@ def get_model(num_users, num_items, mf_dim=10, layers=[10], reg_layers=[0], reg_
     MLP_Embedding_User = Embedding(input_dim = num_users, output_dim = layers[0]/2, name = "mlp_embedding_user",
                                   init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)
     MLP_Embedding_Item = Embedding(input_dim = num_items, output_dim = layers[0]/2, name = 'mlp_embedding_item',
-                                  init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)   
+                                  init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)                                
+
+    # Flatten to get single vector
+    mf_user_input = Flatten()(MF_Embedding_User(user_input))
+    mf_item_input = Flatten()(MF_Embedding_Item(item_input))
+
+    mlp_user_input = Flatten()(MLP_Embedding_User(user_input))
+    mlp_item_input = Flatten()(MLP_Embedding_Item(item_input))
 
     # Auxiliary input of users and items
     aux_user_input = Input(shape=(4,), name='aux_user_input')
     mf_latent_aux_user_input = Dense(5, name='mf_latent_aux_user_input')(aux_user_input)
     mlp_latent_aux_user_input = Dense(5, name='mlp_latent_aux_user_input')(aux_user_input)
-    mf_full_user_input = merge([MF_Embedding_User(user_input), mf_latent_aux_user_input], mode='concat')
-    mlp_full_user_input = merge([MLP_Embedding_User(user_input), mlp_latent_aux_user_input], mode='concat')
+    mf_latent_user_input = merge([mf_user_input, mf_latent_aux_user_input], mode='concat')
+    mlp_latent_user_input = merge([mlp_user_input, mlp_latent_aux_user_input], mode='concat')
 
     aux_item_input = Input(shape=(2,), name='aux_item_input')
     mf_latent_aux_item_input = Dense(5, name='mf_latent_aux_item_input')(aux_item_input)
     mlp_latent_aux_item_input = Dense(5, name='mlp_latent_aux_item_input')(aux_item_input)
-    mf_full_item_input = merge([MF_Embedding_Item(item_input), mf_latent_aux_item_input], mode='concat')
-    mlp_full_item_input = merge([MLP_Embedding_Item(item_input), mlp_latent_aux_item_input], mode='concat')
+    mf_latent_item_input = merge([mf_item_input, mf_latent_aux_item_input], mode='concat')
+    mlp_latent_item_input = merge([mlp_item_input, mlp_latent_aux_item_input], mode='concat')
 
     # MF part
-    mf_user_latent = Flatten()(mf_full_user_input)
-    mf_item_latent = Flatten()(mf_full_item_input)
-    mf_vector = merge([mf_user_latent, mf_item_latent], mode = 'mul') # element-wise multiply
+
+    mf_vector = merge([mf_latent_user_input, mf_latent_item_input], mode = 'mul') # element-wise multiply
 
     # MLP part 
-    mlp_user_latent = Flatten()(mlp_full_user_input)
-    mlp_item_latent = Flatten()(mlp_full_item_input)
-    mlp_vector = merge([mlp_user_latent, mlp_item_latent], mode = 'concat')
+
+    mlp_vector = merge([mlp_latent_user_input, mlp_latent_item_input], mode = 'concat')
     for idx in xrange(1, num_layer):
         layer = Dense(layers[idx], W_regularizer= l2(reg_layers[idx]), activation='relu', name="layer%d" %idx)
         mlp_vector = layer(mlp_vector)
@@ -79,7 +84,7 @@ def get_model(num_users, num_items, mf_dim=10, layers=[10], reg_layers=[0], reg_
     # Final prediction layer
     prediction = Dense(1, activation='sigmoid', init='lecun_uniform', name = "prediction")(predict_vector)
     
-    model = Model(input=[[user_input, aux_user_input], [item_input, aux_item_input]],
+    model = Model(input=[user_input, aux_user_input, item_input, aux_item_input],
                   output=prediction)
     
     return model
@@ -225,6 +230,8 @@ if __name__ == '__main__':
     num_users = dataset.get_num_users()
     num_items = dataset.get_num_items()
     test_set, users, items = dataset.get_user_item_features_test()
+    print users[0].shape
+    print items[0].shape
     
     # Build model
     model = get_model(num_users, num_items, mf_dim, layers, reg_layers, reg_mf, enable_dropout)
@@ -272,7 +279,7 @@ if __name__ == '__main__':
             del mini_batch
         
             # Training
-            hist = model.fit([[user_input, aux_user_input], [item_input, aux_item_input]], #input
+            hist = model.fit([user_input, aux_user_input, item_input, aux_item_input], #input
                          np.array(labels), # labels 
                          #sample_weight=np.array(weights), # weight of samples
                          batch_size=batch_size, nb_epoch=1, verbose=0, shuffle=True)

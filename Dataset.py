@@ -47,7 +47,8 @@ class Dataset(object):
         df = df.drop('order_id', 1)
         df = df.drop('eval_set', 1)
         arr = df.values
-        users = [arr[:,0], arr[:, 1:]]
+        users_features = arr #[arr[:,0], arr[:, 1:]]
+        print list(df)
         """indexs = list(df.index)
         users = [[],[]]
         for index in indexs:
@@ -73,18 +74,20 @@ class Dataset(object):
         f.close()
 
         df = pd.read_csv(self.path+'/train.csv')
+        print list(df)
         #df.drop('order_id', 1)
         #df.drop('add_to_cart_order', 1)
         #df.drop('reordered', 1)
         arr = df.values
-        test_set = [[arr[:,i_uid], arr[:, [i_order_num,i_dow,i_hod,i_days]]], [arr[:,i_pid], arr[:,[i_aid,i_did]]]]
+        test_set = arr[:, [i_uid,i_order_num,i_dow,i_hod,i_days,i_pid,i_aid,i_did]] #[[arr[:,i_uid], arr[:, [i_order_num,i_dow,i_hod,i_days]]], [arr[:,i_pid], arr[:,[i_aid,i_did]]]]
         del df
         del arr
         df = pd.read_csv(self.path+'/products.csv')
         df = df.drop('product_name', 1)
+        print list(df)
         arr = df.values
-        items = [arr[:,0], arr[:, 1:]]
-        return (test_set, users, items)
+        items_features = arr
+        return (test_set, users_features, items_features)
 
     def get_num_users(self):
         path_file = self.path+'/orders.csv'
@@ -246,11 +249,11 @@ class Dataset(object):
 
 if __name__ == '__main__':
     dataset = Dataset('dataset')
-    """test_set, users, items = dataset.get_user_item_features_test()
-    print test_set[0][0].shape, test_set[0][1].shape, test_set[1][0].shape, test_set[1][1].shape
-    print users[0].shape, users[1].shape
-    print items[0].shape, items[1].shape"""
-    fp = open('dataset/users.txt')
+    test_set, users, items = dataset.get_user_item_features_test()
+    print test_set.shape
+    print users.shape
+    print items.shape
+    """fp = open('dataset/users.txt')
     i = 0
     while True:
         i += 1
@@ -261,4 +264,4 @@ if __name__ == '__main__':
         print len(orders_products)
         if end_file:
             break
-    fp.close()
+    fp.close()"""

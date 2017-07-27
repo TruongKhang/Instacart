@@ -12,6 +12,7 @@ import heapq # for retrieval topK
 import multiprocessing
 import numpy as np
 from time import time
+import scipy.sparse as sp
 #from numba import jit, autojit
 
 # Global variables that are shared across processes
@@ -84,38 +85,44 @@ def getNDCG(ranklist, gtItem):
             return math.log(2) / math.log(i+2)
     return 0
 
-def F1_score(model, test_set, users, items, thresh):
-    test_user_ids = test_set[0][0]
-    test_aux_user_input = test_set[0][1]
-    user_ids = users[0]
+def F1_score(model, test_set, users_features, items_features, thresh):
+    num_user = len(users_features)
+    num_item = len(items_features)
+    """user_ids = users[0]
     aux_user_input = users[1]
     test_item_ids = test_set[1][0]
     item_ids = items[0]
-    aux_item_input = items[1]
-    matrix_score = np.zeros((len(user_ids), len(item_ids)), dtype='float32')
-    for u in range(len(user_ids)):
-        user_input = np.repeat([user_ids[u]], len(item_ids))
-        arr_aux = np.repeat([aux_user_input[u]], len(item_ids), axis=0)
-        arr_target = model.predict([[user_input, arr_aux], [item_ids, aux_item_input]])
+    aux_item_input = items[1]"""
+    matrix_score = sp.dok_matrix((num_user, num_item), dtype='float32')
+    for u in range(num_user):
+        #user_input = np.repeat([user_ids[u]], len(item_ids))
+        #arr_aux = np.repeat([aux_user_input[u]], len(item_ids), axis=0)
+        user_u = np.repeat([users_features[u]], num_item, axis=0)
+        arr_target = model.predict([user_u[:,0], user_u[:, 1:], 
+                                    items_features[:, 0], items_features[:, 1:]])
         indexs = np.where(arr_target>thresh)[0]
-        matrix_score[u, indexs] = 1
+        matrix_score[u, indexs] = 1.
         """for i in range(len(item_ids)):
             target_value = model.predict([[user_ids[u], aux_user_input[u]],[item_ids[i], aux_item_input[i]]])
             if target_value > thresh:
                 matrix_score[u,i] = 1"""
 
 
-    indexu, indexi = np.where(matrix_score==1)
-    N = len(indexu)
+    arr_index = matrix_score.keys()
+    N = len(arr_index)
     true_pos = 0
-    for j in range(N):
-        indexu_test = np.where(test_user_ids==(indexu[j]+1))[0]
-        for index in indexu_test:
+    for (u,i) in arr_index:
+        #indexu_test = np.where(test_user_ids==(user_ids[u]+1))[0]
+        vec_inter = np.append(users_features[u], items_features[i])
+        find = np.flatnonzero((test_set==vec_inter).all(1))
+        if len(find) > 0:
+            true_pos += 1
+        """for index in indexu_test:
             if np.array_equal(test_aux_user_input[index], aux_user_input[indexu[j]]) is True:
                 if test_item_ids[index] == item_ids[indexi[j]]:
-                    true_pos += 1
+                    true_pos += 1"""
     # calculate precision
     precision = float(true_pos/N)
     # calculate recall
-    recall = float(true_pos/len(test_user_ids))
+    recall = float(true_pos/len(test_set))
     return 2*precision*recall / (precision+recall)
