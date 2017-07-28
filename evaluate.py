@@ -121,8 +121,13 @@ def F1_score(model, test_set, users_features, items_features, thresh):
             if np.array_equal(test_aux_user_input[index], aux_user_input[indexu[j]]) is True:
                 if test_item_ids[index] == item_ids[indexi[j]]:
                     true_pos += 1"""
+    if true_pos == 0:
+        return 0
+    #print 'true_pos: ', true_pos
+    #print 'N: ', N
+    #print 'length: ', len(test_set)
     # calculate precision
-    precision = float(true_pos/N)
+    precision = float(true_pos)/N
     # calculate recall
-    recall = float(true_pos/len(test_set))
+    recall = float(true_pos)/len(test_set)
     return 2*precision*recall / (precision+recall)

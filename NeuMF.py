@@ -150,7 +150,7 @@ def get_train_instances(mini_batch, num_negatives):
     df_products = pd.read_csv('dataset/products.csv')
     df_products = df_products.drop('product_name', 1)
     arr_products = np.array(df_products.index)
-    print arr_products
+    #print arr_products
     order_product = mini_batch[:, [0, 6]]
     order_set = list(set(order_product[:, 0]))
     for order_id in order_set:
@@ -158,8 +158,11 @@ def get_train_instances(mini_batch, num_negatives):
         arr_pid = order_product[:, 1][arr_i_pid] - 1
         other_products = np.delete(arr_products, arr_pid) + 1
         negative_products = np.random.choice(other_products, size=num_negatives*len(arr_i_pid), replace=False)
+        #print 'Before: ', negative_products.shape
         negative_products = df_products.loc[df_products['product_id'].isin(negative_products.tolist())].values
+        #print 'After: ', negative_products.shape
         negative_samples = np.repeat(np.array([mini_batch[arr_i_pid[0]]]), num_negatives*len(arr_i_pid), axis=0)
+        #print negative_samples.shape
         negative_samples[:, [6,7,8]] = negative_products
         negative_samples[:, 9] *= 0
         mini_batch = np.concatenate((mini_batch, negative_samples), axis=0)
@@ -230,11 +233,11 @@ if __name__ == '__main__':
     num_users = dataset.get_num_users()
     num_items = dataset.get_num_items()
     test_set, users, items = dataset.get_user_item_features_test()
-    print users[0].shape
-    print items[0].shape
+    print users.shape
+    print items.shape
     
     # Build model
-    model = get_model(num_users, num_items, mf_dim, layers, reg_layers, reg_mf, enable_dropout)
+    model = get_model(num_users+1, num_items+1, mf_dim, layers, reg_layers, reg_mf, enable_dropout)
     if learner.lower() == "adagrad": 
         model.compile(optimizer=Adagrad(lr=learning_rate), loss='binary_crossentropy')
     elif learner.lower() == "rmsprop":

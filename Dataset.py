@@ -39,27 +39,22 @@ class Dataset(object):
         
         #self.num_users, self.num_items = self.trainMatrix.shape
 
-    def get_user_item_features_test(self):
-        path_file_user_test = self.path + '/orders.csv'
-        df = pd.read_csv(path_file_user_test)
-        df = df.loc[(df['eval_set']=='train')]
-        df.days_since_prior_order = df.days_since_prior_order.fillna(-1.)
-        df = df.drop('order_id', 1)
-        df = df.drop('eval_set', 1)
+    def get_user_item_features_test(self, samples=None):
+
+
+        df = pd.read_csv(self.path + '/products.csv')
+        df = df.drop('product_name', 1)
+        # print list(df)
         arr = df.values
-        users_features = arr #[arr[:,0], arr[:, 1:]]
-        print list(df)
-        """indexs = list(df.index)
-        users = [[],[]]
-        for index in indexs:
-            user_id = df.user_id.values[index]
-            order_num = df.order_number.values[index]
-            dow = df.order_dow.values[index]
-            hod = df.order_hour_of_day.values[index]
-            days = df.days_since_prior_order.values[index]
-            users[0].append(user_id)
-            users[1].append([order_num, dow, hod, days])"""
+        if samples is not None:
+            sample_inter = np.random.choice(np.arange(0,samples,1), 100, replace=False)
+            items_inter= arr[sample_inter, :]
+            items_features = arr[:samples]
+        else:
+            items_features = arr
         del df
+        del arr
+
         f = open(self.path+'/train.csv', 'r')
         line = f.readline()
         parse = np.array(line.strip().split(','))
@@ -74,7 +69,7 @@ class Dataset(object):
         f.close()
 
         df = pd.read_csv(self.path+'/train.csv')
-        print list(df)
+        #print list(df)
         #df.drop('order_id', 1)
         #df.drop('add_to_cart_order', 1)
         #df.drop('reordered', 1)
@@ -82,11 +77,50 @@ class Dataset(object):
         test_set = arr[:, [i_uid,i_order_num,i_dow,i_hod,i_days,i_pid,i_aid,i_did]] #[[arr[:,i_uid], arr[:, [i_order_num,i_dow,i_hod,i_days]]], [arr[:,i_pid], arr[:,[i_aid,i_did]]]]
         del df
         del arr
-        df = pd.read_csv(self.path+'/products.csv')
-        df = df.drop('product_name', 1)
-        print list(df)
+        if samples is not None:
+            check = True
+            for i in items_inter:
+                arr_index = np.where(test_set[:,5]==i[0])[0]
+                if len(arr_index) > 0:
+                    #print len(arr_index)
+                    if check:
+                        samples_test = test_set[arr_index, :]
+                        check = False
+                    else:
+                        samples_test = np.concatenate((samples_test, test_set[arr_index, :]), axis=0)
+            test_set = samples_test
+        #print test_set.shape
+
+        path_file_user_test = self.path + '/orders.csv'
+        df = pd.read_csv(path_file_user_test)
+        df = df.loc[(df['eval_set'] == 'train')]
+        df.days_since_prior_order = df.days_since_prior_order.fillna(-1.)
+        df = df.drop('order_id', 1)
+        df = df.drop('eval_set', 1)
         arr = df.values
-        items_features = arr
+        if samples is not None:
+            #sample_user = samples[0]
+            test_users = test_set[:, [0,1,2,3,4]]
+            users_features = np.array([test_users[0]])
+            for u in test_users:
+                find = np.flatnonzero((users_features==u).all(1))
+                if len(find) == 0:
+                    users_features = np.concatenate((users_features, np.array([u])), axis=0)
+        else:
+            users_features = arr  # [arr[:,0], arr[:, 1:]]
+        # print list(df)
+        """indexs = list(df.index)
+        users = [[],[]]
+        for index in indexs:
+            user_id = df.user_id.values[index]
+            order_num = df.order_number.values[index]
+            dow = df.order_dow.values[index]
+            hod = df.order_hour_of_day.values[index]
+            days = df.days_since_prior_order.values[index]
+            users[0].append(user_id)
+            users[1].append([order_num, dow, hod, days])"""
+        del df
+
         return (test_set, users_features, items_features)
 
     def get_num_users(self):
